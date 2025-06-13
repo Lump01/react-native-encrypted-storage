@@ -19,20 +19,34 @@ RCT_EXPORT_MODULE();
     return storageName;
 }
 
-- (NSString *)getKeychainAccessibility:(NSDictionary *)options {
+- (CFStringRef)getKeychainAccessibility:(NSDictionary *)options {
     NSString *accessibility = options[@"keychainAccessibility"];
-    return accessibility ? accessibility : (__bridge NSString *)kSecAttrAccessibleAfterFirstUnlock;
+
+    if ([accessibility isEqualToString:@"kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly"]) {
+        return kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly;
+    } else if ([accessibility isEqualToString:@"kSecAttrAccessibleWhenUnlockedThisDeviceOnly"]) {
+        return kSecAttrAccessibleWhenUnlockedThisDeviceOnly;
+    } else if ([accessibility isEqualToString:@"kSecAttrAccessibleWhenUnlocked"]) {
+        return kSecAttrAccessibleWhenUnlocked;
+    } else if ([accessibility isEqualToString:@"kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly"]) {
+        return kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly;
+    } else if ([accessibility isEqualToString:@"kSecAttrAccessibleAfterFirstUnlock"]) {
+        return kSecAttrAccessibleAfterFirstUnlock;
+    }
+
+    // Default fallback
+    return kSecAttrAccessibleAfterFirstUnlock;
 }
 
 - (NSMutableDictionary *)getKeychainQuery:(NSString *)key options:(NSDictionary *)options {
     NSString *storageName = [self getStorageName:options];
-    NSString *accessibility = [self getKeychainAccessibility:options];
+    CFStringRef accessibility = [self getKeychainAccessibility:options];
 
     NSMutableDictionary *query = [[NSMutableDictionary alloc] init];
     [query setObject:(__bridge id)kSecClassGenericPassword forKey:(__bridge id)kSecClass];
     [query setObject:storageName forKey:(__bridge id)kSecAttrService];
     [query setObject:key forKey:(__bridge id)kSecAttrAccount];
-    [query setObject:(__bridge id)[accessibility UTF8String] forKey:(__bridge id)kSecAttrAccessible];
+    [query setObject:(__bridge id)accessibility forKey:(__bridge id)kSecAttrAccessible];
 
     return query;
 }
