@@ -34,11 +34,15 @@ export type EncryptedStorageOptions = {
 };
 
 export type StorageErrorCallback = (error?: Error) => void;
-export type StorageValueCallback = (error?: Error, value?: string) => void;
+export type StorageValueCallback = (
+  error?: Error,
+  value?: string | null
+) => void;
 
 // Default options
 const defaultOptions: EncryptedStorageOptions = {
-  keychainAccessibility: KeychainAccessibility.kSecAttrAccessibleAfterFirstUnlock,
+  keychainAccessibility:
+    KeychainAccessibility.kSecAttrAccessibleAfterFirstUnlock,
 };
 
 export default class EncryptedStorage {
@@ -48,7 +52,11 @@ export default class EncryptedStorage {
    * @param {string} value - The data to store.
    * @param {EncryptedStorageOptions} options - Configuration options.
    */
-  static setItem(key: string, value: string, options?: EncryptedStorageOptions): Promise<void>;
+  static setItem(
+    key: string,
+    value: string,
+    options?: EncryptedStorageOptions
+  ): Promise<void>;
 
   /**
    * Writes data to the disk, using SharedPreferences or KeyChain, depending on the platform.
@@ -65,7 +73,12 @@ export default class EncryptedStorage {
    * @param {EncryptedStorageOptions} options - Configuration options.
    * @param {Function} cb - The function to call when the operation completes.
    */
-  static setItem(key: string, value: string, options: EncryptedStorageOptions, cb: StorageErrorCallback): void;
+  static setItem(
+    key: string,
+    value: string,
+    options: EncryptedStorageOptions,
+    cb: StorageErrorCallback
+  ): void;
 
   static setItem(
     key: string,
@@ -85,7 +98,9 @@ export default class EncryptedStorage {
     }
 
     if (callback) {
-      RNEncryptedStorage.setItem(key, value, options, callback);
+      RNEncryptedStorage.setItem(key, value, options)
+        .then(() => callback!())
+        .catch((error: Error) => callback!(error));
       return;
     }
 
@@ -97,7 +112,10 @@ export default class EncryptedStorage {
    * @param {string} key - A string that is associated to a value.
    * @param {EncryptedStorageOptions} options - Configuration options.
    */
-  static getItem(key: string, options?: EncryptedStorageOptions): Promise<string | null>;
+  static getItem(
+    key: string,
+    options?: EncryptedStorageOptions
+  ): Promise<string | null>;
 
   /**
    * Retrieves data from the disk, using SharedPreferences or KeyChain, depending on the platform and returns it as the specified type.
@@ -112,7 +130,11 @@ export default class EncryptedStorage {
    * @param {EncryptedStorageOptions} options - Configuration options.
    * @param {Function} cb - The function to call when the operation completes.
    */
-  static getItem(key: string, options: EncryptedStorageOptions, cb: StorageValueCallback): void;
+  static getItem(
+    key: string,
+    options: EncryptedStorageOptions,
+    cb: StorageValueCallback
+  ): void;
 
   static getItem(
     key: string,
@@ -145,7 +167,10 @@ export default class EncryptedStorage {
    * @param {string} key - A string that is associated to a value.
    * @param {EncryptedStorageOptions} options - Configuration options.
    */
-  static removeItem(key: string, options?: EncryptedStorageOptions): Promise<void>;
+  static removeItem(
+    key: string,
+    options?: EncryptedStorageOptions
+  ): Promise<void>;
 
   /**
    * Deletes data from the disk, using SharedPreferences or KeyChain, depending on the platform.
@@ -160,7 +185,11 @@ export default class EncryptedStorage {
    * @param {EncryptedStorageOptions} options - Configuration options.
    * @param {Function} cb - The function to call when the operation completes.
    */
-  static removeItem(key: string, options: EncryptedStorageOptions, cb: StorageErrorCallback): void;
+  static removeItem(
+    key: string,
+    options: EncryptedStorageOptions,
+    cb: StorageErrorCallback
+  ): void;
 
   static removeItem(
     key: string,
@@ -205,7 +234,10 @@ export default class EncryptedStorage {
    * @param {EncryptedStorageOptions} options - Configuration options.
    * @param {Function} cb - The function to call when the operation completes.
    */
-  static clear(options: EncryptedStorageOptions, cb: StorageErrorCallback): void;
+  static clear(
+    options: EncryptedStorageOptions,
+    cb: StorageErrorCallback
+  ): void;
 
   static clear(
     optionsOrCallback?: EncryptedStorageOptions | StorageErrorCallback,
