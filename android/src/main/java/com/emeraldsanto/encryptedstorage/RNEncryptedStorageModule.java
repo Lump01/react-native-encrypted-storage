@@ -7,113 +7,138 @@ import androidx.security.crypto.EncryptedSharedPreferences;
 import androidx.security.crypto.MasterKey;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 
+import com.facebook.react.bridge.ReadableMap;
+
 public class RNEncryptedStorageModule extends ReactContextBaseJavaModule {
 
-    private static final String NATIVE_MODULE_NAME = "RNEncryptedStorage";
-    private static final String SHARED_PREFERENCES_FILENAME = "RN_ENCRYPTED_STORAGE_SHARED_PREF";
+  private static final String NATIVE_MODULE_NAME = "RNEncryptedStorage";
 
-    private SharedPreferences sharedPreferences;
+  private SharedPreferences sharedPreferences;
+  private MasterKey masterKey;
 
-    public RNEncryptedStorageModule(ReactApplicationContext context) {
-        super(context);
+  private String getStorageName(ReadableMap options) {
+    String bundleId = this.getReactApplicationContext().getPackageName();
+    String storageName = options.hasKey("storageName") ?
+      options.getString("storageName") : bundleId;
+    return storageName;
+  }
 
-        try {
-            MasterKey key = new MasterKey.Builder(context)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build();
+  private void createSharedPreferences(ReadableMap options) {
+    ReactContext reactContext = this.getReactApplicationContext();
+    String storageName = this.getStorageName(options);
 
-            this.sharedPreferences = EncryptedSharedPreferences.create(
-                context,
-                RNEncryptedStorageModule.SHARED_PREFERENCES_FILENAME,
-                key,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            );
-        }
+    try {
+      this.sharedPreferences = EncryptedSharedPreferences.create(
+        reactContext,
+        storageName,
+        this.masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+      );
+    } catch (Exception ex) {
+      Log.e(NATIVE_MODULE_NAME, "Failed to create encrypted shared preferences! Failing back to standard SharedPreferences", ex);
+      this.sharedPreferences = reactContext.getSharedPreferences(storageName, Context.MODE_PRIVATE);
+    }
+  }
 
-        catch (Exception ex) {
-            Log.e(NATIVE_MODULE_NAME, "Failed to create encrypted shared preferences! Failing back to standard SharedPreferences", ex);
-            this.sharedPreferences = context.getSharedPreferences(RNEncryptedStorageModule.SHARED_PREFERENCES_FILENAME, Context.MODE_PRIVATE);
-        }
+  public RNEncryptedStorageModule(ReactApplicationContext context) {
+    super(context);
+
+    try {
+      this.masterKey = new MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build();
+    } catch (Exception ex) {
+      Log.e(NATIVE_MODULE_NAME, "Failed to create MasterKey", ex);
+    }
+  }
+
+  @Override
+  public String getName() {
+    return RNEncryptedStorageModule.NATIVE_MODULE_NAME;
+  }
+
+  @ReactMethod
+  public void setItem(String key, String value, ReadableMap options, Promise promise) {
+    this.createSharedPreferences(options);
+
+    if (this.sharedPreferences == null) {
+      promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
+      return;
     }
 
-    @Override
-    public String getName() {
-        return RNEncryptedStorageModule.NATIVE_MODULE_NAME;
+    SharedPreferences.Editor editor = this.sharedPreferences.edit();
+    editor.putString(key, value);
+    boolean saved = editor.commit();
+
+    if (saved) {
+      promise.resolve(value);
     }
 
-    @ReactMethod
-    public void setItem(String key, String value, Promise promise) {
-        if (this.sharedPreferences == null) {
-            promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
-            return;
-        }
+    else {
+      promise.reject(new Exception(String.format("An error occurred while saving %s", key)));
+    }
+  }
 
-        SharedPreferences.Editor editor = this.sharedPreferences.edit();
-        editor.putString(key, value);
-        boolean saved = editor.commit();
+  @ReactMethod
+  public void getItem(String key, ReadableMap options, Promise promise) {
+    this.createSharedPreferences(options);
 
-        if (saved) {
-            promise.resolve(value);
-        }
-
-        else {
-            promise.reject(new Exception(String.format("An error occurred while saving %s", key)));
-        }
+    if (this.sharedPreferences == null) {
+      promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
+      return;
     }
 
-    @ReactMethod
-    public void getItem(String key, Promise promise) {
-        if (this.sharedPreferences == null) {
-            promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
-            return;
-        }
+    String value = this.sharedPreferences.getString(key, null);
 
-        String value = this.sharedPreferences.getString(key, null);
+    promise.resolve(value);
+  }
 
-        promise.resolve(value);
+  @ReactMethod
+  public void removeItem(String key, ReadableMap options, Promise promise) {
+    this.createSharedPreferences(options);
+
+    if (this.sharedPreferences == null) {
+      promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
+      return;
     }
 
-    @ReactMethod
-    public void removeItem(String key, Promise promise) {
-        if (this.sharedPreferences == null) {
-            promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
-            return;
-        }
+    SharedPreferences.Editor editor = this.sharedPreferences.edit();
+    editor.remove(key);
+    boolean saved = editor.commit();
 
-        SharedPreferences.Editor editor = this.sharedPreferences.edit();
-        editor.remove(key);
-        boolean saved = editor.commit();
-
-        if (saved) {
-            promise.resolve(key);
-        }
-
-        else {
-            promise.reject(new Exception(String.format("An error occured while removing %s", key)));
-        }
+    if (saved) {
+      promise.resolve(key);
     }
 
-    @ReactMethod
-    public void clear(Promise promise) {
-        if (this.sharedPreferences == null) {
-            promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
-            return;
-        }
-
-        SharedPreferences.Editor editor = this.sharedPreferences.edit();
-        editor.clear();
-        boolean saved = editor.commit();
-
-        if (saved) {
-            promise.resolve(null);
-        }
-
-        else {
-            promise.reject(new Exception("An error occured while clearing SharedPreferences"));
-        }
+    else {
+      promise.reject(new Exception(String.format("An error occured while removing %s", key)));
     }
+  }
+
+  @ReactMethod
+  public void clear(ReadableMap options, Promise promise) {
+    this.createSharedPreferences(options);
+
+    if (this.sharedPreferences == null) {
+      promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
+      return;
+    }
+
+    SharedPreferences.Editor editor = this.sharedPreferences.edit();
+    editor.clear();
+    boolean saved = editor.commit();
+
+    if (saved) {
+      promise.resolve(null);
+    }
+
+    else {
+      promise.reject(new Exception("An error occured while clearing SharedPreferences"));
+    }
+  }
 }

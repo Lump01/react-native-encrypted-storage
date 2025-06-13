@@ -56,21 +56,21 @@ import EncryptedStorage from 'react-native-encrypted-storage';
 
 ```js
 async function storeUserSession() {
-    try {
-        await EncryptedStorage.setItem(
-            "user_session",
-            JSON.stringify({
-                age : 21,
-                token : "ACCESS_TOKEN",
-                username : "emeraldsanto",
-                languages : ["fr", "en", "de"]
-            })
-        );
+  try {
+    await EncryptedStorage.setItem(
+      "user_session",
+      JSON.stringify({
+        age : 21,
+        token : "ACCESS_TOKEN",
+        username : "emeraldsanto",
+        languages : ["fr", "en", "de"]
+      })
+    );
 
-        // Congrats! You've just stored your first value!
-    } catch (error) {
-        // There was an error on the native side
-    }
+    // Congrats! You've just stored your first value!
+  } catch (error) {
+    // There was an error on the native side
+  }
 }
 ```
 
@@ -78,15 +78,15 @@ async function storeUserSession() {
 
 ```js
 async function retrieveUserSession() {
-    try {   
-        const session = await EncryptedStorage.getItem("user_session");
-    
-        if (session !== undefined) {
-            // Congrats! You've just retrieved your first value!
-        }
-    } catch (error) {
-        // There was an error on the native side
+  try {
+    const session = await EncryptedStorage.getItem("user_session");
+
+    if (session !== undefined) {
+      // Congrats! You've just retrieved your first value!
     }
+  } catch (error) {
+    // There was an error on the native side
+  }
 }
 ```
 
@@ -94,12 +94,12 @@ async function retrieveUserSession() {
 
 ```js
 async function removeUserSession() {
-    try {
-        await EncryptedStorage.removeItem("user_session");
-        // Congrats! You've just removed your first value!
-    } catch (error) {
-        // There was an error on the native side
-    }
+  try {
+    await EncryptedStorage.removeItem("user_session");
+    // Congrats! You've just removed your first value!
+  } catch (error) {
+    // There was an error on the native side
+  }
 }
 ```
 
@@ -107,12 +107,12 @@ async function removeUserSession() {
 
 ```js
 async function clearStorage() {
-    try {
-        await EncryptedStorage.clear();
-        // Congrats! You've just cleared the device storage!
-    } catch (error) {
-        // There was an error on the native side
-    }
+  try {
+    await EncryptedStorage.clear();
+    // Congrats! You've just cleared the device storage!
+  } catch (error) {
+    // There was an error on the native side
+  }
 }
 ```
 
@@ -122,15 +122,39 @@ Take the `removeItem` example, an error can occur when trying to remove a value 
 
 ```js
 async function removeUserSession() {
-    try {
-        await EncryptedStorage.removeItem("user_session");
-    } catch (error) {
-        // There was an error on the native side
-        // You can find out more about this error by using the `error.code` property
-        console.log(error.code); // ex: -25300 (errSecItemNotFound)
-    }
+  try {
+    await EncryptedStorage.removeItem("user_session");
+  } catch (error) {
+    // There was an error on the native side
+    // You can find out more about this error by using the `error.code` property
+    console.log(error.code); // ex: -25300 (errSecItemNotFound)
+  }
 }
 ```
+
+### Storage options
+
+You can pass a set of **options** as the previous to last parameter of `setItem`, `getItem`, `removeItem` or `clear` functions:
+
+```js
+await EncryptedStorage.removeItem('user_session', {
+  storageName: 'userStorage',
+});
+```
+
+The following options are supported:
+
+- `keychainAccessibility` (**iOS only**)
+
+  Control item availability relative to the lock state of the device. If the attribute ends with the string `ThisDeviceOnly`, the item can be restored to the same device that created a backup, but it isn’t migrated when restoring another device’s backup data. [Read more](https://developer.apple.com/documentation/security/keychain_services/keychain_items/restricting_keychain_item_accessibility?language=objc)
+
+  Default value: `kSecAttrAccessibleAfterFirstUnlock`
+
+- `storageName`
+
+  A string for identifying a set of storage items. Should not contain path separators. Uses [kSecAttrService](https://developer.apple.com/documentation/security/ksecattrservice?language=objc) on iOS and [fileName](https://developer.android.com/reference/kotlin/androidx/security/crypto/EncryptedSharedPreferences?hl=en#create) on Android.
+
+  Default value: App's bundle id
 
 ## Note regarding `Keychain` persistence
 

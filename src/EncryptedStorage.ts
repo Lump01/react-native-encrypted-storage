@@ -1,11 +1,37 @@
 /* eslint-disable no-dupe-class-members */
 
 import { NativeModules } from 'react-native';
+import { KeychainAccessibility } from './constants';
+
 const { RNEncryptedStorage } = NativeModules;
 
 if (!RNEncryptedStorage) {
   throw new Error('RNEncryptedStorage is undefined');
 }
+
+type KeychainAccessibilityKeys = keyof typeof KeychainAccessibility;
+
+export type EncryptedStorageOptions = {
+  /**
+   * **iOS only** - Control item availability relative to the lock state of the device.
+   *
+   * If the attribute ends with the string `ThisDeviceOnly`, the item can be restored to the same device that created a backup,
+   * but it isn’t migrated when restoring another device’s backup data.
+   * [Read more](https://developer.apple.com/documentation/security/keychain_services/keychain_items/restricting_keychain_item_accessibility?language=objc)
+   *
+   * Default value: `kSecAttrAccessibleAfterFirstUnlock`
+   */
+  keychainAccessibility?: typeof KeychainAccessibility[KeychainAccessibilityKeys];
+  /**
+   * A string for identifying a set of storage items. Should not contain path separators.
+   *
+   * Uses [kSecAttrService](https://developer.apple.com/documentation/security/ksecattrservice?language=objc) on iOS
+   * and [fileName](https://developer.android.com/reference/kotlin/androidx/security/crypto/EncryptedSharedPreferences?hl=en#create) on Android.
+   *
+   * Default value: App's bundle id
+   */
+  storageName?: string;
+};
 
 export type StorageErrorCallback = (error?: Error) => void;
 export type StorageValueCallback = (error?: Error, value?: string) => void;
