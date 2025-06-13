@@ -11,6 +11,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -29,65 +32,65 @@ public class RNEncryptedStorageModuleUnitTest {
   public void shouldGetAndSet() {
     Promise promise1 = mock(Promise.class);
     module.getItem("test", options, promise1);
-    verify(promise1).resolve(null);
+    verify(promise1).resolve(isNull());
 
     Promise promise2 = mock(Promise.class);
     module.setItem("test", "asd", options, promise2);
-    verify(promise2).resolve("asd");
+    verify(promise2).resolve(eq("asd"));
 
     Promise promise3 = mock(Promise.class);
     module.getItem("test", options, promise3);
-    verify(promise3).resolve("asd");
+    verify(promise3).resolve(eq("asd"));
   }
 
   @Test
   public void shouldRemove() {
     Promise promise1 = mock(Promise.class);
     module.setItem("test", "asd", options, promise1);
-    verify(promise1).resolve("asd");
+    verify(promise1).resolve(eq("asd"));
 
     Promise promise2 = mock(Promise.class);
     module.getItem("test", options, promise2);
-    verify(promise2).resolve("asd");
+    verify(promise2).resolve(eq("asd"));
 
     Promise promise3 = mock(Promise.class);
     module.removeItem("test", options, promise3);
-    verify(promise3).resolve("test");
+    verify(promise3).resolve(eq("test"));
 
     Promise promise4 = mock(Promise.class);
     module.getItem("test", options, promise4);
-    verify(promise4).resolve(null);
+    verify(promise4).resolve(isNull());
   }
 
   @Test
   public void shouldClear() {
     Promise promise1 = mock(Promise.class);
     module.setItem("test", "asd", options, promise1);
-    verify(promise1).resolve("asd");
+    verify(promise1).resolve(eq("asd"));
 
     Promise promise2 = mock(Promise.class);
     module.getItem("test", options, promise2);
-    verify(promise2).resolve("asd");
+    verify(promise2).resolve(eq("asd"));
 
     Promise promise3 = mock(Promise.class);
     module.clear(options, promise3);
-    verify(promise3).resolve(null);
+    verify(promise3).resolve(isNull());
 
     Promise promise4 = mock(Promise.class);
     module.getItem("test", options, promise4);
-    verify(promise4).resolve(null);
+    verify(promise4).resolve(isNull());
   }
 
   @Test
   public void shouldKeepValuesWhenRecreated() {
     Promise promise1 = mock(Promise.class);
     module.setItem("test", "asd", options, promise1);
-    verify(promise1).resolve("asd");
+    verify(promise1).resolve(eq("asd"));
 
     module = new RNEncryptedStorageModule(new ReactApplicationContext(InstrumentationRegistry.getInstrumentation().getTargetContext()));
 
     Promise promise2 = mock(Promise.class);
     module.getItem("test", options, promise2);
-    verify(promise2).resolve("asd");
+    verify(promise2).resolve(eq("asd"));
   }
 }
