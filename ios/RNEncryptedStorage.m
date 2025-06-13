@@ -46,8 +46,7 @@ RCT_EXPORT_MODULE();
     [query setObject:(__bridge id)kSecClassGenericPassword forKey:(__bridge id)kSecClass];
     [query setObject:storageName forKey:(__bridge id)kSecAttrService];
     [query setObject:key forKey:(__bridge id)kSecAttrAccount];
-    [query setObject:(__bridge id)accessibility forKey:(__bridge id)kSecAttrAccessible];
-
+    [query setObject:(__bridge id) (CFStringRef) accessibility forKey:(__bridge id) kSecAttrAccessible];
     return query;
 }
 
