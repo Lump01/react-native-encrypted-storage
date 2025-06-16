@@ -16,7 +16,7 @@ export type EncryptedStorageOptions = {
    * **iOS only** - Control item availability relative to the lock state of the device.
    *
    * If the attribute ends with the string `ThisDeviceOnly`, the item can be restored to the same device that created a backup,
-   * but it isn't migrated when restoring another device's backup data.
+   * but it isn’t migrated when restoring another device’s backup data.
    * [Read more](https://developer.apple.com/documentation/security/keychain_services/keychain_items/restricting_keychain_item_accessibility?language=objc)
    *
    * Default value: `kSecAttrAccessibleAfterFirstUnlock`
@@ -34,23 +34,13 @@ export type EncryptedStorageOptions = {
 };
 
 export type StorageErrorCallback = (error?: Error) => void;
-export type StorageValueCallback = (
-  error?: Error,
-  value?: string | null
-) => void;
-
-// Default options
-const defaultOptions: EncryptedStorageOptions = {
-  keychainAccessibility:
-    KeychainAccessibility.kSecAttrAccessibleAfterFirstUnlock,
-};
+export type StorageValueCallback = (error?: Error, value?: string) => void;
 
 export default class EncryptedStorage {
   /**
    * Writes data to the disk, using SharedPreferences or KeyChain, depending on the platform.
    * @param {string} key - A string that will be associated to the value for later retrieval.
    * @param {string} value - The data to store.
-   * @param {EncryptedStorageOptions} options - Configuration options.
    */
   static setItem(
     key: string,
@@ -64,43 +54,20 @@ export default class EncryptedStorage {
    * @param {string} value - The data to store.
    * @param {Function} cb - The function to call when the operation completes.
    */
-  static setItem(key: string, value: string, cb: StorageErrorCallback): void;
-
-  /**
-   * Writes data to the disk, using SharedPreferences or KeyChain, depending on the platform.
-   * @param {string} key - A string that will be associated to the value for later retrieval.
-   * @param {string} value - The data to store.
-   * @param {EncryptedStorageOptions} options - Configuration options.
-   * @param {Function} cb - The function to call when the operation completes.
-   */
   static setItem(
     key: string,
     value: string,
-    options: EncryptedStorageOptions,
-    cb: StorageErrorCallback
+    options?: EncryptedStorageOptions,
+    cb?: StorageErrorCallback
   ): void;
-
   static setItem(
     key: string,
     value: string,
-    optionsOrCallback?: EncryptedStorageOptions | StorageErrorCallback,
+    options?: EncryptedStorageOptions,
     cb?: StorageErrorCallback
   ): void | Promise<void> {
-    let options: EncryptedStorageOptions = defaultOptions;
-    let callback: StorageErrorCallback | undefined;
-
-    // Handle overloaded parameters
-    if (typeof optionsOrCallback === 'function') {
-      callback = optionsOrCallback;
-    } else if (typeof optionsOrCallback === 'object') {
-      options = { ...defaultOptions, ...optionsOrCallback };
-      callback = cb;
-    }
-
-    if (callback) {
-      RNEncryptedStorage.setItem(key, value, options)
-        .then(() => callback!())
-        .catch((error: Error) => callback!(error));
+    if (cb) {
+      RNEncryptedStorage.setItem(key, value, options).then(cb).catch(cb);
       return;
     }
 
@@ -110,7 +77,6 @@ export default class EncryptedStorage {
   /**
    * Retrieves data from the disk, using SharedPreferences or KeyChain, depending on the platform and returns it as the specified type.
    * @param {string} key - A string that is associated to a value.
-   * @param {EncryptedStorageOptions} options - Configuration options.
    */
   static getItem(
     key: string,
@@ -122,40 +88,18 @@ export default class EncryptedStorage {
    * @param {string} key - A string that is associated to a value.
    * @param {Function} cb - The function to call when the operation completes.
    */
-  static getItem(key: string, cb: StorageValueCallback): void;
-
-  /**
-   * Retrieves data from the disk, using SharedPreferences or KeyChain, depending on the platform and returns it as the specified type.
-   * @param {string} key - A string that is associated to a value.
-   * @param {EncryptedStorageOptions} options - Configuration options.
-   * @param {Function} cb - The function to call when the operation completes.
-   */
   static getItem(
     key: string,
-    options: EncryptedStorageOptions,
-    cb: StorageValueCallback
+    options?: EncryptedStorageOptions,
+    cb?: StorageValueCallback
   ): void;
-
   static getItem(
     key: string,
-    optionsOrCallback?: EncryptedStorageOptions | StorageValueCallback,
+    options?: EncryptedStorageOptions,
     cb?: StorageValueCallback
   ): void | Promise<string | null> {
-    let options: EncryptedStorageOptions = defaultOptions;
-    let callback: StorageValueCallback | undefined;
-
-    // Handle overloaded parameters
-    if (typeof optionsOrCallback === 'function') {
-      callback = optionsOrCallback;
-    } else if (typeof optionsOrCallback === 'object') {
-      options = { ...defaultOptions, ...optionsOrCallback };
-      callback = cb;
-    }
-
-    if (callback) {
-      RNEncryptedStorage.getItem(key, options)
-        .then((value: string | null) => callback!(undefined, value))
-        .catch((error: Error) => callback!(error));
+    if (cb) {
+      RNEncryptedStorage.getItem(key, options).then(cb).catch(cb);
       return;
     }
 
@@ -165,7 +109,6 @@ export default class EncryptedStorage {
   /**
    * Deletes data from the disk, using SharedPreferences or KeyChain, depending on the platform.
    * @param {string} key - A string that is associated to a value.
-   * @param {EncryptedStorageOptions} options - Configuration options.
    */
   static removeItem(
     key: string,
@@ -177,40 +120,18 @@ export default class EncryptedStorage {
    * @param {string} key - A string that is associated to a value.
    * @param {Function} cb - The function to call when the operation completes.
    */
-  static removeItem(key: string, cb: StorageErrorCallback): void;
-
-  /**
-   * Deletes data from the disk, using SharedPreferences or KeyChain, depending on the platform.
-   * @param {string} key - A string that is associated to a value.
-   * @param {EncryptedStorageOptions} options - Configuration options.
-   * @param {Function} cb - The function to call when the operation completes.
-   */
   static removeItem(
     key: string,
-    options: EncryptedStorageOptions,
-    cb: StorageErrorCallback
+    options?: EncryptedStorageOptions,
+    cb?: StorageErrorCallback
   ): void;
-
   static removeItem(
     key: string,
-    optionsOrCallback?: EncryptedStorageOptions | StorageErrorCallback,
+    options?: EncryptedStorageOptions,
     cb?: StorageErrorCallback
   ): void | Promise<void> {
-    let options: EncryptedStorageOptions = defaultOptions;
-    let callback: StorageErrorCallback | undefined;
-
-    // Handle overloaded parameters
-    if (typeof optionsOrCallback === 'function') {
-      callback = optionsOrCallback;
-    } else if (typeof optionsOrCallback === 'object') {
-      options = { ...defaultOptions, ...optionsOrCallback };
-      callback = cb;
-    }
-
-    if (callback) {
-      RNEncryptedStorage.removeItem(key, options)
-        .then(() => callback!())
-        .catch((error: Error) => callback!(error));
+    if (cb) {
+      RNEncryptedStorage.removeItem(key, options).then(cb).catch(cb);
       return;
     }
 
@@ -219,45 +140,22 @@ export default class EncryptedStorage {
 
   /**
    * Clears all data from disk, using SharedPreferences or KeyChain, depending on the platform.
-   * @param {EncryptedStorageOptions} options - Configuration options.
    */
   static clear(options?: EncryptedStorageOptions): Promise<void>;
-
   /**
    * Clears all data from disk, using SharedPreferences or KeyChain, depending on the platform.
-   * @param {Function} cb - The function to call when the operation completes.
-   */
-  static clear(cb: StorageErrorCallback): void;
-
-  /**
-   * Clears all data from disk, using SharedPreferences or KeyChain, depending on the platform.
-   * @param {EncryptedStorageOptions} options - Configuration options.
    * @param {Function} cb - The function to call when the operation completes.
    */
   static clear(
-    options: EncryptedStorageOptions,
-    cb: StorageErrorCallback
+    options?: EncryptedStorageOptions,
+    cb?: StorageErrorCallback
   ): void;
-
   static clear(
-    optionsOrCallback?: EncryptedStorageOptions | StorageErrorCallback,
+    options?: EncryptedStorageOptions,
     cb?: StorageErrorCallback
   ): void | Promise<void> {
-    let options: EncryptedStorageOptions = defaultOptions;
-    let callback: StorageErrorCallback | undefined;
-
-    // Handle overloaded parameters
-    if (typeof optionsOrCallback === 'function') {
-      callback = optionsOrCallback;
-    } else if (typeof optionsOrCallback === 'object') {
-      options = { ...defaultOptions, ...optionsOrCallback };
-      callback = cb;
-    }
-
-    if (callback) {
-      RNEncryptedStorage.clear(options)
-        .then(() => callback!())
-        .catch((error: Error) => callback!(error));
+    if (cb) {
+      RNEncryptedStorage.clear(options).then(cb).catch(cb);
       return;
     }
 

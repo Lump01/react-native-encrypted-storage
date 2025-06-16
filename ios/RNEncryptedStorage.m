@@ -1,6 +1,6 @@
 //
 //  RNEncryptedStorage.m
-//  EncryptedStorage
+//  Starter
 //
 //  Created by Yanick Bélanger on 2020-02-09.
 //  Copyright © 2020 Facebook. All rights reserved.
@@ -8,137 +8,170 @@
 
 #import "RNEncryptedStorage.h"
 #import <Security/Security.h>
+#import <React/RCTLog.h>
+
+void rejectPromise(NSString *message, NSError *error, RCTPromiseRejectBlock rejecter)
+{
+    NSString* errorCode = [NSString stringWithFormat:@"%ld", error.code];
+    NSString* errorMessage = [NSString stringWithFormat:@"RNEncryptedStorageError: %@", message];
+
+    rejecter(errorCode, errorMessage, error);
+}
 
 @implementation RNEncryptedStorage
 
-RCT_EXPORT_MODULE();
-
-- (NSString *)getStorageName:(NSDictionary *)options {
-    NSString *bundleId = [[NSBundle mainBundle] bundleIdentifier];
-    NSString *storageName = options[@"storageName"] ? options[@"storageName"] : bundleId;
-    return storageName;
-}
-
-- (CFStringRef)getKeychainAccessibility:(NSDictionary *)options {
-    NSString *accessibility = options[@"keychainAccessibility"];
-
-    if ([accessibility isEqualToString:@"kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly"]) {
-        return kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly;
-    } else if ([accessibility isEqualToString:@"kSecAttrAccessibleWhenUnlockedThisDeviceOnly"]) {
-        return kSecAttrAccessibleWhenUnlockedThisDeviceOnly;
-    } else if ([accessibility isEqualToString:@"kSecAttrAccessibleWhenUnlocked"]) {
-        return kSecAttrAccessibleWhenUnlocked;
-    } else if ([accessibility isEqualToString:@"kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly"]) {
-        return kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly;
-    } else if ([accessibility isEqualToString:@"kSecAttrAccessibleAfterFirstUnlock"]) {
-        return kSecAttrAccessibleAfterFirstUnlock;
-    }
-
-    // Default fallback
-    return kSecAttrAccessibleAfterFirstUnlock;
-}
-
-- (NSMutableDictionary *)getKeychainQuery:(NSString *)key options:(NSDictionary *)options {
-    NSString *storageName = [self getStorageName:options];
-    CFStringRef accessibility = [self getKeychainAccessibility:options];
-
-    NSMutableDictionary *query = [[NSMutableDictionary alloc] init];
-    [query setObject:(__bridge id)kSecClassGenericPassword forKey:(__bridge id)kSecClass];
-    [query setObject:storageName forKey:(__bridge id)kSecAttrService];
-    [query setObject:key forKey:(__bridge id)kSecAttrAccount];
-    [query setObject:(__bridge id) (CFStringRef) accessibility forKey:(__bridge id) kSecAttrAccessible];
-    return query;
-}
-
-RCT_EXPORT_METHOD(setItem:(NSString *)key
-        value:(NSString *)value
-        options:(NSDictionary *)options
-        resolver:(RCTPromiseResolveBlock)resolve
-        rejecter:(RCTPromiseRejectBlock)reject) {
-
-    NSMutableDictionary *query = [self getKeychainQuery:key options:options];
-
-    // First, delete any existing item
-    SecItemDelete((__bridge CFDictionaryRef)query);
-
-    // Add the new item
-    NSData *valueData = [value dataUsingEncoding:NSUTF8StringEncoding];
-    [query setObject:valueData forKey:(__bridge id)kSecValueData];
-
-    OSStatus status = SecItemAdd((__bridge CFDictionaryRef)query, NULL);
-
-    if (status == errSecSuccess) {
-        resolve(nil);
-    } else {
-        NSString *errorMessage = [NSString stringWithFormat:@"Failed to save item with key '%@'. OSStatus: %d", key, (int)status];
-        reject(@"keychain_error", errorMessage, nil);
-    }
-}
-
-RCT_EXPORT_METHOD(getItem:(NSString *)key
-        options:(NSDictionary *)options
-        resolver:(RCTPromiseResolveBlock)resolve
-        rejecter:(RCTPromiseRejectBlock)reject) {
-
-    NSMutableDictionary *query = [self getKeychainQuery:key options:options];
-    [query setObject:(__bridge id)kSecReturnData forKey:(__bridge id)kSecReturnData];
-    [query setObject:(__bridge id)kSecMatchLimitOne forKey:(__bridge id)kSecMatchLimit];
-
-    CFTypeRef result = NULL;
-    OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, &result);
-
-    if (status == errSecSuccess && result != NULL) {
-        NSData *data = (__bridge_transfer NSData *)result;
-        NSString *value = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-        resolve(value);
-    } else if (status == errSecItemNotFound) {
-        resolve([NSNull null]);
-    } else {
-        NSString *errorMessage = [NSString stringWithFormat:@"Failed to retrieve item with key '%@'. OSStatus: %d", key, (int)status];
-        reject(@"keychain_error", errorMessage, nil);
-    }
-}
-
-RCT_EXPORT_METHOD(removeItem:(NSString *)key
-        options:(NSDictionary *)options
-        resolver:(RCTPromiseResolveBlock)resolve
-        rejecter:(RCTPromiseRejectBlock)reject) {
-
-    NSMutableDictionary *query = [self getKeychainQuery:key options:options];
-
-    OSStatus status = SecItemDelete((__bridge CFDictionaryRef)query);
-
-    if (status == errSecSuccess || status == errSecItemNotFound) {
-        resolve(nil);
-    } else {
-        NSString *errorMessage = [NSString stringWithFormat:@"Failed to remove item with key '%@'. OSStatus: %d", key, (int)status];
-        reject(@"keychain_error", errorMessage, nil);
-    }
-}
-
-RCT_EXPORT_METHOD(clear:(NSDictionary *)options
-        resolver:(RCTPromiseResolveBlock)resolve
-        rejecter:(RCTPromiseRejectBlock)reject) {
-
-    NSString *storageName = [self getStorageName:options];
-
-    NSMutableDictionary *query = [[NSMutableDictionary alloc] init];
-    [query setObject:(__bridge id)kSecClassGenericPassword forKey:(__bridge id)kSecClass];
-    [query setObject:storageName forKey:(__bridge id)kSecAttrService];
-
-    OSStatus status = SecItemDelete((__bridge CFDictionaryRef)query);
-
-    if (status == errSecSuccess || status == errSecItemNotFound) {
-        resolve([NSNull null]);
-    } else {
-        NSString *errorMessage = [NSString stringWithFormat:@"Failed to clear storage '%@'. OSStatus: %d", storageName, (int)status];
-        reject(@"keychain_error", errorMessage, nil);
-    }
-}
-
-// Required for RN 0.60+
-+ (BOOL)requiresMainQueueSetup {
++ (BOOL)requiresMainQueueSetup
+{
     return NO;
 }
 
+CFStringRef getKeychainAccessibility(NSDictionary *options)
+{
+    id keychainAccessibility = options[@"keychainAccessibility"];
+    if (keychainAccessibility == nil) {
+        return kSecAttrAccessibleAfterFirstUnlock;
+    }
+
+    NSDictionary *valueMap = @{
+            @"kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly": (__bridge NSString *)kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+            @"kSecAttrAccessibleWhenUnlockedThisDeviceOnly": (__bridge NSString *)kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            @"kSecAttrAccessibleWhenUnlocked": (__bridge NSString *)kSecAttrAccessibleWhenUnlocked,
+            @"kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly": (__bridge NSString *)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            @"kSecAttrAccessibleAfterFirstUnlock": (__bridge NSString *)kSecAttrAccessibleAfterFirstUnlock,
+
+    };
+
+    NSString *value = valueMap[keychainAccessibility];
+
+    return (__bridge CFStringRef)value;
+}
+
+NSString *getKeychainService(NSDictionary *options)
+{
+    id keychainService = options[@"storageName"];
+    if (keychainService == nil) {
+        return [[NSBundle mainBundle] bundleIdentifier];
+    }
+    return keychainService;
+}
+
+
+RCT_EXPORT_MODULE();
+
+RCT_EXPORT_METHOD(setItem:(NSString *)key withValue:(NSString *)value withOptions:(NSDictionary *) options resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+{
+    NSData* dataFromValue = [value dataUsingEncoding:NSUTF8StringEncoding];
+
+    if (dataFromValue == nil) {
+        NSError* error = [NSError errorWithDomain:[[NSBundle mainBundle] bundleIdentifier] code:0 userInfo: nil];
+        rejectPromise(@"An error occured while parsing value", error, reject);
+        return;
+    }
+
+    // Prepares the insert query structure
+    CFStringRef keychainAccessibility = getKeychainAccessibility(options);
+    NSString *keychainService = getKeychainService(options);
+    NSDictionary* storeQuery = @{
+            (__bridge id)kSecClass : (__bridge id)kSecClassGenericPassword,
+            (__bridge id)kSecAttrAccount : key,
+            (__bridge id)kSecValueData : dataFromValue,
+            (__bridge id)kSecAttrAccessible: (__bridge id)keychainAccessibility,
+            (__bridge id)kSecAttrService: keychainService
+    };
+
+    // Deletes the existing item prior to inserting the new one
+    SecItemDelete((__bridge CFDictionaryRef)storeQuery);
+
+    OSStatus insertStatus = SecItemAdd((__bridge CFDictionaryRef)storeQuery, nil);
+
+    if (insertStatus == noErr) {
+        resolve(value);
+    }
+
+    else {
+        NSError* error = [NSError errorWithDomain:[[NSBundle mainBundle] bundleIdentifier] code:insertStatus userInfo: nil];
+        rejectPromise(@"An error occured while saving value", error, reject);
+    }
+}
+
+RCT_EXPORT_METHOD(getItem:(NSString *)key withOptions:(NSDictionary *) options resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+{
+    NSString *keychainService = getKeychainService(options);
+    /*
+         The unique key for kSecClassGenericPassword is composed of: kSecAttrAccount and kSecAttrService
+         https://stackoverflow.com/a/22519700
+     */
+    NSDictionary* getQuery = @{
+            (__bridge id)kSecClass : (__bridge id)kSecClassGenericPassword,
+            (__bridge id)kSecAttrAccount : key,
+            (__bridge id)kSecAttrService: keychainService,
+            (__bridge id)kSecReturnData : (__bridge id)kCFBooleanTrue,
+            (__bridge id)kSecMatchLimit : (__bridge id)kSecMatchLimitOne
+    };
+
+    CFTypeRef dataRef = NULL;
+    OSStatus getStatus = SecItemCopyMatching((__bridge CFDictionaryRef)getQuery, &dataRef);
+
+    if (getStatus == errSecSuccess) {
+        NSString* storedValue = [[NSString alloc] initWithData: (__bridge NSData*)dataRef encoding: NSUTF8StringEncoding];
+        resolve(storedValue);
+    }
+
+    else if (getStatus == errSecItemNotFound) {
+        resolve(nil);
+    }
+
+    else {
+        NSError* error = [NSError errorWithDomain: [[NSBundle mainBundle] bundleIdentifier] code:getStatus userInfo:nil];
+        rejectPromise(@"An error occured while retrieving value", error, reject);
+    }
+}
+
+RCT_EXPORT_METHOD(removeItem:(NSString *)key withOptions:(NSDictionary *) options resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+{
+    CFStringRef keychainAccessibility = getKeychainAccessibility(options);
+    NSString *keychainService = getKeychainService(options);
+    NSDictionary* removeQuery = @{
+            (__bridge id)kSecClass : (__bridge id)kSecClassGenericPassword,
+            (__bridge id)kSecAttrAccount : key,
+            (__bridge id)kSecReturnData : (__bridge id)kCFBooleanTrue,
+            (__bridge id)kSecAttrAccessible: (__bridge id)keychainAccessibility,
+            (__bridge id)kSecAttrService: keychainService
+    };
+
+    OSStatus removeStatus = SecItemDelete((__bridge CFDictionaryRef)removeQuery);
+
+    if (removeStatus == noErr) {
+        resolve(key);
+    }
+
+    else {
+        NSError* error = [NSError errorWithDomain:[[NSBundle mainBundle] bundleIdentifier] code:removeStatus userInfo: nil];
+        rejectPromise(@"An error occured while removing value", error, reject);
+    }
+}
+
+RCT_EXPORT_METHOD(clear:(NSDictionary *) options resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+{
+    NSArray *secItemClasses = @[
+            (__bridge id)kSecClassGenericPassword,
+            (__bridge id)kSecClassInternetPassword,
+            (__bridge id)kSecClassCertificate,
+            (__bridge id)kSecClassKey,
+            (__bridge id)kSecClassIdentity
+    ];
+
+    NSString *keychainService = getKeychainService(options);
+
+    // Maps through all Keychain classes and deletes all items that match
+    for (id secItemClass in secItemClasses) {
+        NSDictionary *spec = @{
+                (__bridge id)kSecClass: secItemClass,
+                (__bridge id)kSecAttrService: keychainService
+        };
+        SecItemDelete((__bridge CFDictionaryRef)spec);
+    }
+
+    resolve(nil);
+}
 @end
